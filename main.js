@@ -17,35 +17,83 @@ y4 = y1 + unitBoxDistance * 3;
 y5 = y1 + unitBoxDistance * 4;
 
 
-//produces an array of all IDs inside the units.json file
-var units = JSON.parse(fs.readFileSync('units.json', 'utf8'));
-totalUnitCount = units.length;
 
-unitId = [];
 
-for (let i = 0; i < totalUnitCount; i++) {
-    var id = units[i].id;
-    unitId.push(id);
-}
+let date_ob = new Date();
+
+// current date
+// adjust 0 before single digit date
+let date = ("0" + date_ob.getDate()).slice(-2);
+
+// current month
+let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
+
+// current year
+let year = date_ob.getFullYear();
+
+// current hours
+let hours = date_ob.getHours();
+
+// current minutes
+let minutes = date_ob.getMinutes();
+
+// current seconds
+let seconds = date_ob.getSeconds();
+
+
+
+
+//creates a list of units based on what images exist on unitImages directory. This method is used rather than reading 
+//directly from units.json, because some unit images are missing. When JIMP tries to read an image that doesn't exist, it crashes. 
+const unitFolder = './unitImages/';
+
+let unitId = [''];
+
+fs.readdirSync(unitFolder).forEach(file => {
+    unitId.push(file);
+});
 
 //combines filepath and extension with the unitId. Produces an array unitImages, which 
 //contains full filepath of all images. 
 filePath1 = 'unitImages/';
-filePath2 = '.png';
-
+totalUnitCount = unitId.length;
 var unitImages = [];
-
-for (var i = 0; i < totalUnitCount; i++) {
-    unitImage = filePath1.concat(unitId[i] + filePath2);
+for (var i = 1; i < totalUnitCount; i++) {
+    unitImage = filePath1.concat(unitId[i]);
     unitImages.push(unitImage);
 }
 
+//generates the annotationsCategories. No reason for this to be in the loop, so it's out here. 
+var annotationsCategories = JSON.parse(fs.readFileSync('units.json', 'utf8'));
+totalUnitCount = annotationsCategories.length;
 
-dataSetAmount = 3;
+for (let i = 0; i < totalUnitCount; i++) {
+    delete annotationsCategories[i].imgUrl;  
+    annotationsCategories[i].supercategories = "none";
+}
+
+
+
+
+
+
+
+
+
+
+//main function below. Generates images & annotations
+
+dataSetAmount = 3; //number of dataset images you want the program to produce
+annotationsAnnotations = [{}];
+currentAnnotations =  [{}];
+annotationsImages = [{}];
+currentAnnotationsImages = [{}];
 
 function placeUnits() {
 
 for (var i = 0; i < dataSetAmount; i++) {
+
+  //image generation portion
 
 async function placeUnit(iteration) {
     let randomUnit1 = unitImages[Math.floor(Math.random() * unitImages.length)];
@@ -277,9 +325,84 @@ async function placeUnit(iteration) {
 
 
           await image.writeAsync(iteration + `.png`); //result ("output")
+
+
+
+    
+
+          //annotation generation portion
+      
+         class Annotations {
+          constructor(info, images, annotations, categories) {
+          this.info = info;
+          this.images = images;
+          this.annotations = annotations; 
+          this.categories = categories;
         }
-     placeUnit(i);
-     }
- }
-   placeUnits();
-  
+      }
+      
+      
+      annotationsInfo = {    
+        "description": "optc box scanner dataset",
+        "url": "",
+        "version": "1.0",
+        "year": "2020",
+        "contributor": "mike",
+        "date_created": year + "/" + month + "/" + date
+      }
+      
+      currentAnnotationsImages = {    
+              "file_name": iteration + `.png`,
+              "height": 1920,
+              "width": 1080,
+              "date_captured": year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds,
+              "id": iteration,
+          }
+      
+      annotationsImages = annotationsImages.concat(currentAnnotationsImages);
+      
+      
+      var unitLocations = JSON.parse(fs.readFileSync('./annotations/coco.json', 'utf8'));
+      randomUnit = [randomUnit1.slice(11,15), randomUnit2.slice(11,15), randomUnit3.slice(11,15), randomUnit4.slice(11,15), randomUnit5.slice(11,15), randomUnit6.slice(11,15), randomUnit7.slice(11,15), randomUnit8.slice(11,15), randomUnit9.slice(11,15), randomUnit10.slice(11,15), randomUnit11.slice(11,15), randomUnit12.slice(11,15), randomUnit13.slice(11,15), randomUnit14.slice(11,15), randomUnit15.slice(11,15), randomUnit16.slice(11,15), randomUnit17.slice(11,15), randomUnit18.slice(11,15), randomUnit19.slice(11,15), randomUnit20.slice(11,15), randomUnit21.slice(11,15), randomUnit22.slice(11,15), randomUnit23.slice(11,15), randomUnit24.slice(11,15), randomUnit25.slice(11,15)];
+      
+      for (let i = 0; i < 24; i++) {
+      currentAnnotations =  [{
+        "segmentation": unitLocations.annotations[i].segmentation,
+        "area": unitLocations.annotations[i].area,
+        "iscrowd": 0,
+        "image_id": iteration,
+        "bbox": unitLocations.annotations[i].bbox,
+        "category_id": randomUnit[i],
+        "id": iteration + '1'
+      }]
+      annotationsAnnotations = annotationsAnnotations.concat(currentAnnotations);
+      } 
+      
+      
+      let annotations = new Annotations(annotationsInfo, annotationsImages, annotationsAnnotations, annotationsCategories);
+      
+      console.log(annotations);
+      
+      //write to json file
+      annotationsExport = JSON.stringify(annotations, null, 2);
+      fs.writeFile('annotations.json', annotationsExport, (err) => {
+        if (err) {
+            console.error(err)
+            throw err
+          }
+       
+          console.log('Saved data to file.')
+        })
+            }
+           placeUnit(i);
+           }
+       }
+      
+      
+         placeUnits();
+        
+      
+      
+      
+      
+      
